@@ -9,8 +9,8 @@ import os
 
 st.set_page_config(page_title="Detector de Plagas", layout="wide")
 
-st.title("🍃 Detector de Plagas en Hojas de Algodón")
-st.markdown("### Modelo YOLO11s - mAP50: 82.7%")
+st.title("🍃 Detector de Mosca Blanca en Hojas de Algodón")
+st.markdown("### By: Erick Mera - Kevin Garcia")
 
 # ==========================================
 # CONFIGURACIÓN DE TELEGRAM (SOLO PARA ENVIAR ALERTAS)
@@ -173,7 +173,6 @@ if uploaded_file:
 st.markdown("---")
 st.markdown("""
 ### ℹ️ Información:
-- **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable'
-- **Modelo:** YOLO11s entrenado con mAP50: 82.7%
+- **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable' en alguna hoja 
 - **Zona horaria:** Ecuador (UTC-5)
 """)
