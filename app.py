@@ -31,34 +31,45 @@ def enviar_alerta_telegram(clase, conf, imagen_bytes):
     
     ahora = datetime.now(ecuador_tz)
     mensaje = f"""
-🚨 *ALERTA DE PLAGA DETECTADA*
+ *ALERTA DE PLAGA DETECTADA*
 
 🍃 *Clase:* {clase}
 📊 *Confianza:* {conf:.2f}%
- *Hora:* {ahora.strftime('%H:%M:%S')}
-📅 *Fecha:* {ahora.strftime('%d/%m/%Y')}
+⏰ *Hora:* {ahora.strftime('%H:%M:%S')}
+ *Fecha:* {ahora.strftime('%d/%m/%Y')}
 
-️ *Acción recomendada:* Revisar planta inmediatamente
+⚠️ *Acción recomendada:* Revisar planta inmediatamente
     """
     
     try:
         # PRIMERO: Enviar mensaje de texto
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        requests.post(url, json={
+        response_text = requests.post(url, json={
             "chat_id": TELEGRAM_CHAT_ID,
             "text": mensaje,
             "parse_mode": "Markdown"
         }, timeout=10)
         
+        print(f"✅ Mensaje enviado: {response_text.status_code}")
+        
         # SEGUNDO: Enviar imagen DEBAJO del mensaje
-        url_foto = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-        files = {'photo': imagen_bytes}
-        caption = f"📸 Evidencia: {clase} - {conf:.2f}%"
-        requests.post(url_foto, files=files, 
-                     data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, 
-                     timeout=10)
+        if imagen_bytes and len(imagen_bytes) > 0:
+            url_foto = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+            files = {'photo': ('image.jpg', imagen_bytes, 'image/jpeg')}
+            caption = f"📸 Evidencia: {clase} - {conf:.2f}%"
+            
+            response_photo = requests.post(url_foto, files=files, 
+                                          data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, 
+                                          timeout=10)
+            
+            print(f"📸 Imagen enviada: {response_photo.status_code}")
+            if response_photo.status_code != 200:
+                print(f"❌ Error enviando imagen: {response_photo.text}")
+        else:
+            print("️ No hay imagen para enviar")
+            
     except Exception as e:
-        print(f"Error enviando a Telegram: {e}")
+        print(f"❌ Error enviando a Telegram: {e}")
 
 # ==========================================
 # CARGAR MODELO
@@ -93,7 +104,7 @@ st.sidebar.info("""
 3. Si es 'Crítico' o 'Nada Saludable', recibirás alerta en Telegram con la imagen
 """)
 
-uploaded_file = st.file_uploader(" Sube una imagen de hoja", type=['jpg', 'png', 'jpeg'])
+uploaded_file = st.file_uploader("📷 Sube una imagen de hoja", type=['jpg', 'png', 'jpeg'])
 
 if uploaded_file:
     col1, col2 = st.columns(2)
@@ -144,8 +155,9 @@ if uploaded_file:
                         # Enviar alerta si es crítico
                         if clase in ['Crítico', 'Nada Saludable']:
                             img_bytes = BytesIO()
-                            image.save(img_bytes, format='JPEG')
-                            enviar_alerta_telegram(clase, conf, img_bytes)
+                            image.save(img_bytes, format='JPEG', quality=85)
+                            img_bytes.seek(0)
+                            enviar_alerta_telegram(clase, conf, img_bytes.getvalue())
                             st.warning("⚠️ **Alerta enviada a Telegram**")
                     else:
                         st.warning("No se detectó ninguna hoja en la imagen")
