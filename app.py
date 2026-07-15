@@ -12,11 +12,18 @@ st.set_page_config(page_title="Detector de Plagas", layout="wide")
 st.title("🍃 Detector de Plagas en Hojas de Algodón")
 st.markdown("### Modelo YOLO11s - mAP50: 82.7%")
 
-# Configuración Telegram (SOLO para enviar alertas)
+# ==========================================
+# CONFIGURACIÓN DE TELEGRAM (SOLO PARA ENVIAR ALERTAS)
+# ==========================================
 TELEGRAM_BOT_TOKEN = "8725129241:AAGBYwVLnmVfbBUa9RVjIdQD2AaOswKjinc"
 TELEGRAM_CHAT_ID = "7700414080"
+
+# Zona horaria Ecuador (UTC-5)
 ecuador_tz = timezone(timedelta(hours=-5))
 
+# ==========================================
+# FUNCIÓN PARA ENVIAR ALERTAS A TELEGRAM
+# ==========================================
 def enviar_alerta_telegram(clase, conf, imagen_bytes):
     """Envía alerta SOLO si es crítico o nada saludable"""
     if clase not in ['Crítico', 'Nada Saludable']:
@@ -35,6 +42,7 @@ def enviar_alerta_telegram(clase, conf, imagen_bytes):
     """
     
     try:
+        # PRIMERO: Enviar mensaje de texto
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         requests.post(url, json={
             "chat_id": TELEGRAM_CHAT_ID,
@@ -42,14 +50,19 @@ def enviar_alerta_telegram(clase, conf, imagen_bytes):
             "parse_mode": "Markdown"
         }, timeout=10)
         
+        # SEGUNDO: Enviar imagen DEBAJO del mensaje
         url_foto = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         files = {'photo': imagen_bytes}
+        caption = f"📸 Evidencia: {clase} - {conf:.2f}%"
         requests.post(url_foto, files=files, 
-                     data={"chat_id": TELEGRAM_CHAT_ID}, timeout=10)
+                     data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, 
+                     timeout=10)
     except Exception as e:
         print(f"Error enviando a Telegram: {e}")
 
-# Cargar modelo
+# ==========================================
+# CARGAR MODELO
+# ==========================================
 @st.cache_resource
 def load_model():
     try:
@@ -70,15 +83,17 @@ if model is None:
     st.error("❌ Error cargando el modelo")
     st.stop()
 
-# Interfaz
+# ==========================================
+# INTERFAZ WEB
+# ==========================================
 st.sidebar.info("""
-**🎯 Instrucciones:**
+** Instrucciones:**
 1. Sube una imagen de hoja de algodón
 2. Haz clic en 'Analizar Hoja'
-3. Si es 'Crítico' o 'Nada Saludable', recibirás alerta en Telegram
+3. Si es 'Crítico' o 'Nada Saludable', recibirás alerta en Telegram con la imagen
 """)
 
-uploaded_file = st.file_uploader("📷 Sube una imagen de hoja", type=['jpg', 'png', 'jpeg'])
+uploaded_file = st.file_uploader(" Sube una imagen de hoja", type=['jpg', 'png', 'jpeg'])
 
 if uploaded_file:
     col1, col2 = st.columns(2)
@@ -145,7 +160,7 @@ if uploaded_file:
 
 st.markdown("---")
 st.markdown("""
-### ️ Información:
+### ℹ️ Información:
 - **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable'
 - **Modelo:** YOLO11s entrenado con mAP50: 82.7%
 - **Zona horaria:** Ecuador (UTC-5)
