@@ -6,11 +6,10 @@ from io import BytesIO
 from datetime import datetime, timezone, timedelta
 import tempfile
 import os
-import time
 
 st.set_page_config(page_title="Detector de Plagas", layout="wide")
 
-st.title("🍃 Detector de Mosca Blanca en Hojas de Algodón")
+st.title(" Detector de Mosca Blanca en Hojas de Algodón")
 st.markdown("### By: Erick Mera - Kevin Garcia")
 
 # ==========================================
@@ -29,7 +28,7 @@ def enviar_alerta_telegram(clase, conf, imagen_bytes):
     
     ahora = datetime.now(ecuador_tz)
     mensaje = f"""
- *ALERTA DE PLAGA DETECTADA*
+🚨 *ALERTA DE PLAGA DETECTADA*
 
 🍃 *Clase:* {clase}
 📊 *Confianza:* {conf:.2f}%
@@ -68,7 +67,7 @@ def load_model():
 model = load_model()
 CLASSES = ['Crítico', 'Nada Saludable', 'Saludable', 'media_saludable']
 if model is None:
-    st.error("❌ Error cargando el modelo")
+    st.error(" Error cargando el modelo")
     st.stop()
 
 # ==========================================
@@ -102,10 +101,10 @@ def analizar_imagen(image):
 # ==========================================
 # SIDEBAR - SELECCIÓN DE MODO
 # ==========================================
-st.sidebar.title("🎯 Modo de Detección")
+st.sidebar.title(" Modo de Detección")
 modo = st.sidebar.radio(
     "Selecciona el modo:",
-    ["📷 Subir imagen", " Cámara en vivo", "⏱️ Tiempo real automático"]
+    ["📷 Subir imagen", "📹 Cámara en vivo"]
 )
 
 st.sidebar.info("""
@@ -149,72 +148,69 @@ if modo == "📷 Subir imagen":
                         else:
                             st.warning("No se detectó ninguna hoja")
                 except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                    st.error(f" Error: {e}")
 
 # ==========================================
-# MODO 3: TIEMPO REAL AUTOMÁTICO
+# MODO 2: CÁMARA EN VIVO (FOTO ÚNICA)
 # ==========================================
-elif modo == "⏱️ Tiempo real automático":
-    st.header("️ Detección en Tiempo Real")
-    st.info("💡 La cámara capturará y analizará automáticamente cada pocos segundos")
+elif modo == "📹 Cámara en vivo":
+    st.header("📹 Capturar desde Cámara")
+    st.markdown("### Instrucciones:")
+    st.info("""
+    1. **Haz clic en el botón de abajo** para activar la cámara
+    2. **Permite el acceso** cuando el navegador lo solicite
+    3. **Toma una foto** de la hoja
+    4. **Espera** a que se analice automáticamente
+    """)
     
-    col_config, col_display = st.columns([1, 2])
+    st.markdown("---")
     
-    with col_config:
-        intervalo = st.slider("⏱️ Intervalo entre capturas (segundos)", 2, 10, 3)
-        activar_camara = st.checkbox("🎥 Activar cámara en tiempo real")
-        st.write(f"**Intervalo:** {intervalo} segundos")
+    camera_container = st.container()
     
-    if activar_camara:
-        camera_photo = st.camera_input("📸 Cámara en tiempo real", key="realtime_camera")
+    with camera_container:
+        st.subheader(" Toma una foto")
+        img_file_buffer = st.camera_input("Haz clic aquí para activar la cámara")
         
-        if camera_photo:
-            placeholder = st.empty()
+        if img_file_buffer is not None:
+            st.success("✅ Foto capturada - Analizando...")
             
-            with st.spinner(" Análisis en tiempo real activo..."):
-                while activar_camara:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                image = Image.open(img_file_buffer)
+                st.image(image, caption="Foto capturada", width=500)
+            
+            with col2:
+                with st.spinner("🔍 Analizando imagen..."):
                     try:
-                        image = Image.open(camera_photo)
                         clase, conf, result_img, detectado = analizar_imagen(image)
                         
-                        ahora = datetime.now(ecuador_tz)
-                        
-                        with placeholder.container():
-                            col1, col2 = st.columns(2)
+                        if detectado:
+                            st.success(f"✅ **{clase}**")
+                            st.metric("Confianza", f"{conf:.2f}%")
+                            st.image(result_img, caption="Resultado con detección", width=500)
                             
-                            with col1:
-                                st.image(image, caption="Captura actual", width=400)
+                            if clase in ['Crítico', 'Nada Saludable']:
+                                st.error("🚨 **¡ALERTA!** Revisa la planta inmediatamente")
+                                if st.button("📱 Enviar alerta a Telegram"):
+                                    img_bytes = BytesIO()
+                                    image.save(img_bytes, format='JPEG', quality=85)
+                                    img_bytes.seek(0)
+                                    enviar_alerta_telegram(clase, conf, img_bytes.getvalue())
+                                    st.success("✅ Alerta enviada correctamente")
+                        else:
+                            st.warning("⚠️ No se detectó ninguna hoja en la imagen")
                             
-                            with col2:
-                                if detectado:
-                                    color = "🔴" if clase in ['Crítico', 'Nada Saludable'] else "🟢"
-                                    st.markdown(f"### {color} **{clase}**")
-                                    st.metric("Confianza", f"{conf:.2f}%")
-                                    st.image(result_img, caption="Detección", width=400)
-                                    
-                                    st.markdown(f"""
-                                    **Última detección:**
-                                    - ⏰ {ahora.strftime('%H:%M:%S')}
-                                    - 📅 {ahora.strftime('%d/%m/%Y')}
-                                    """)
-                                    
-                                    if clase in ['Crítico', 'Nada Saludable']:
-                                        st.warning("🚨 **¡ALERTA!** Revisa la planta")
-                                else:
-                                    st.warning("⚠️ No se detectó hoja")
-                        
-                        time.sleep(intervalo)
-                        
-                        # Recapturar para el siguiente ciclo
-                        # Nota: en Streamlit, camera_input mantiene la última foto
-                        # Para verdadero tiempo real, el usuario debe tomar nuevas fotos
-                        
                     except Exception as e:
-                        st.error(f"Error: {e}")
-                        time.sleep(intervalo)
-                    
-                    # Break manual - el usuario puede desactivar el checkbox
-                    break  # Salimos después de una iteración para permitir interacción
+                        st.error(f"❌ Error al analizar: {e}")
+        else:
+            st.info("📷 **Esperando que actives la cámara...**")
+            st.markdown("""
+            **Nota:** Si la cámara no aparece:
+            - Asegúrate de que tu navegador tenga permisos para usar la cámara
+            - Intenta recargar la página (F5)
+            - Usa Chrome o Edge (mejor compatibilidad)
+            """)
 
 # ==========================================
 # INFORMACIÓN
@@ -225,5 +221,5 @@ st.markdown("""
 - **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable'
 - **Modelo:** YOLO11s entrenado con mAP50: 82.7%
 - **Zona horaria:** Ecuador (UTC-5)
-- **Modos disponibles:** Subir imagen, Cámara en vivo, Tiempo real
+- **Modos disponibles:** Subir imagen, Cámara en vivo 
 """)
