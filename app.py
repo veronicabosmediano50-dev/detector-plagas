@@ -10,7 +10,7 @@ import os
 st.set_page_config(page_title="Detector de Plagas", layout="wide")
 
 st.title("🍃 Detector de Mosca Blanca en Hojas de Algodón")
-st.markdown("### By: Erick Mera - Kevin Garcia")
+st.markdown("### By: Erick Mera B - Kevin Garcia")
 
 # ==========================================
 # CONFIGURACIÓN DE TELEGRAM (SOLO PARA ENVIAR ALERTAS)
