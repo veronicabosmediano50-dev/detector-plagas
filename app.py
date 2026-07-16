@@ -192,7 +192,6 @@ elif modo == "📹 Cámara en vivo":
 st.markdown("---")
 st.markdown("""
 ### ℹ️ Información:
-- **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable'
-- **Modelo:** YOLO11s entrenado con mAP50: 82.7%
+- **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable' en una hoja 
 - **Zona horaria:** Ecuador (UTC-5)
 """)
