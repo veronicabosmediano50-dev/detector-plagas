@@ -9,7 +9,7 @@ import os
 
 st.set_page_config(page_title="Detector de Plagas", layout="wide")
 
-st.title(" Detector de Mosca Blanca en Hojas de Algodón")
+st.title("🍃 Detector de Mosca Blanca en Hojas de Algodón")
 st.markdown("### By: Erick Mera - Kevin Garcia")
 
 # ==========================================
@@ -67,20 +67,31 @@ def load_model():
 model = load_model()
 CLASSES = ['Crítico', 'Nada Saludable', 'Saludable', 'media_saludable']
 if model is None:
-    st.error(" Error cargando el modelo")
+    st.error("❌ Error cargando el modelo")
     st.stop()
 
 # ==========================================
-# FUNCIÓN DE ANÁLISIS
+# FUNCIÓN DE ANÁLISIS (CORREGIDA)
 # ==========================================
 def analizar_imagen(image):
     """Analiza una imagen y retorna los resultados"""
-    if image.mode in ('RGBA', 'P'):
+    # Convertir SIEMPRE a RGB (evita error RGBA -> JPEG)
+    if image.mode in ('RGBA', 'P', 'LA'):
+        # Crear fondo blanco para imágenes con transparencia
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        if image.mode == 'P':
+            image = image.convert('RGBA')
+        if image.mode in ('RGBA', 'LA'):
+            # Pegar imagen sobre fondo blanco usando máscara de transparencia
+            background.paste(image, mask=image.split()[-1])  # Último canal es alpha
+        image = background
+    elif image.mode != 'RGB':
         image = image.convert('RGB')
     
+    # Guardar imagen temporal
     with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
         temp_path = tmp_file.name
-        image.save(temp_path, format='JPEG')
+        image.save(temp_path, format='JPEG', quality=95)
     
     try:
         results = model(temp_path, verbose=False)
@@ -101,7 +112,7 @@ def analizar_imagen(image):
 # ==========================================
 # SIDEBAR - SELECCIÓN DE MODO
 # ==========================================
-st.sidebar.title(" Modo de Detección")
+st.sidebar.title("🎯 Modo de Detección")
 modo = st.sidebar.radio(
     "Selecciona el modo:",
     ["📷 Subir imagen", "📹 Cámara en vivo"]
@@ -148,7 +159,7 @@ if modo == "📷 Subir imagen":
                         else:
                             st.warning("No se detectó ninguna hoja")
                 except Exception as e:
-                    st.error(f" Error: {e}")
+                    st.error(f"❌ Error: {e}")
 
 # ==========================================
 # MODO 2: CÁMARA EN VIVO (FOTO ÚNICA)
@@ -168,7 +179,7 @@ elif modo == "📹 Cámara en vivo":
     camera_container = st.container()
     
     with camera_container:
-        st.subheader(" Toma una foto")
+        st.subheader("📸 Toma una foto")
         img_file_buffer = st.camera_input("Haz clic aquí para activar la cámara")
         
         if img_file_buffer is not None:
@@ -191,7 +202,7 @@ elif modo == "📹 Cámara en vivo":
                             st.image(result_img, caption="Resultado con detección", width=500)
                             
                             if clase in ['Crítico', 'Nada Saludable']:
-                                st.error("🚨 **¡ALERTA!** Revisa la planta inmediatamente")
+                                st.error(" **¡ALERTA!** Revisa la planta inmediatamente")
                                 if st.button("📱 Enviar alerta a Telegram"):
                                     img_bytes = BytesIO()
                                     image.save(img_bytes, format='JPEG', quality=85)
@@ -221,5 +232,5 @@ st.markdown("""
 - **Alertas automáticas:** Se envían cuando se detecta 'Crítico' o 'Nada Saludable'
 - **Modelo:** YOLO11s entrenado con mAP50: 82.7%
 - **Zona horaria:** Ecuador (UTC-5)
-- **Modos disponibles:** Subir imagen, Cámara en vivo 
+- **Modos disponibles:** Subir imagen, Cámara en vivo
 """)
