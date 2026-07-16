@@ -152,49 +152,6 @@ if modo == "📷 Subir imagen":
                     st.error(f"❌ Error: {e}")
 
 # ==========================================
-# MODO 2: CÁMARA EN VIVO (FOTO ÚNICA)
-# ==========================================
-elif modo == "📹 Cámara en vivo":
-    st.header("📹 Capturar desde Cámara")
-    st.info("💡 Haz clic en el botón para activar la cámara de tu laptop y tomar una foto")
-    
-    # Usar un key único para la cámara
-    camera_photo = st.camera_input(" Haz clic para activar la cámara y tomar una foto", key="live_camera")
-    
-    if camera_photo is not None:
-        st.success("✅ Foto capturada correctamente")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            image = Image.open(camera_photo)
-            st.image(image, caption="Foto capturada", width=500)
-        
-        with col2:
-            if st.button("🔍 Analizar Foto", key="analizar_foto"):
-                with st.spinner("Analizando imagen..."):
-                    try:
-                        clase, conf, result_img, detectado = analizar_imagen(image)
-                        
-                        if detectado:
-                            st.success(f"✅ **{clase}**")
-                            st.metric("Confianza", f"{conf:.2f}%")
-                            st.image(result_img, caption="Resultado", width=500)
-                            
-                            if clase in ['Crítico', 'Nada Saludable']:
-                                img_bytes = BytesIO()
-                                image.save(img_bytes, format='JPEG', quality=85)
-                                img_bytes.seek(0)
-                                enviar_alerta_telegram(clase, conf, img_bytes.getvalue())
-                                st.warning("⚠️ **Alerta enviada a Telegram**")
-                        else:
-                            st.warning("No se detectó ninguna hoja")
-                    except Exception as e:
-                        st.error(f"❌ Error: {e}")
-    else:
-        st.info("👆 Esperando captura de foto...")
-
-# ==========================================
 # MODO 3: TIEMPO REAL AUTOMÁTICO
 # ==========================================
 elif modo == "⏱️ Tiempo real automático":
