@@ -254,60 +254,69 @@ elif modo == " Cámara en vivo":
                 st.error(f"❌ Error: {e}")
 
 # ==========================================
-# MODO 3: TIEMPO REAL (DETECCIÓN AUTOMÁTICA)
+# MODO 3: TIEMPO REAL (SIMULADO CON REFRESCO)
 # ==========================================
 elif modo == "🎥 Tiempo Real":
-    st.header("🎥 Detección en Tiempo Real")
-    st.info(" **Muestra una hoja a la cámara** y el modelo detectará automáticamente su estado de salud en tiempo real.")
+    st.header("🎥 Detección en Tiempo Real (Modo Simplificado)")
+    st.info(" **Toma fotos consecutivas rápidamente** mostrando una hoja a la cámara")
     
     st.markdown("""
-    ### Características:
-    - ✅ **Detección automática** sin necesidad de tomar fotos
-    - ✅ **Análisis continuo** frame por frame
-    - ✅ **Visualización en vivo** con bounding boxes
-    - ✅ **Resultados inmediatos** en la pantalla
+    ### Instrucciones:
+    1. Muestra la hoja a la cámara
+    2. Toma una foto
+    3. El modelo la analiza automáticamente
+    4. Repite el proceso para monitoreo continuo
     """)
     
-    st.markdown("---")
+    col1, col2 = st.columns(2)
     
-    # Configurar WebRTC con STUN servers
-    rtc_configuration = {
-        "iceServers": [
-            {"urls": ["stun:stun.l.google.com:19302"]},
-            {"urls": ["stun:stun1.l.google.com:19302"]},
-        ]
-    }
-    
-    try:
-        # Configurar WebRTC
-        webrtc_ctx = webrtc_streamer(
-            key="detector-plagas-realtime",
-            mode=WebRtcMode.SENDRECV,
-            video_processor_factory=VideoProcessor,
-            media_stream_constraints={"video": True, "audio": False},
-            rtc_configuration=rtc_configuration,
-            async_processing=True,
-        )
+    with col1:
+        img_file_buffer = st.camera_input("📸 Tomar foto", key="realtime_cam")
         
-        st.markdown("""
-        **Instrucciones de uso:**
-        1. Permite el acceso a la cámara cuando el navegador lo solicite
-        2. Acerca una hoja de algodón a la cámara
-        3. El modelo detectará automáticamente la categoría
-        4. Verás el resultado superpuesto en el video en tiempo real
-        5. El nombre de la clase y confianza aparecerán en la esquina superior izquierda
-        """)
-        
-        if webrtc_ctx.state == "RUNNING":
-            st.success(" Cámara activa - Detección en tiempo real funcionando")
-        elif webrtc_ctx.state == "STOPPED":
-            st.info(" Haz clic en 'START' para activar la cámara")
-        else:
-            st.warning(f"⏳ Estado: {webrtc_ctx.state}")
+        if img_file_buffer:
+            image = Image.open(img_file_buffer)
+            st.image(image, caption="Foto capturada", width=400)
             
-    except Exception as e:
-        st.error(f"❌ Error al iniciar cámara: {e}")
-        st.info(" **Alternativa:** Usa el modo 'Cámara en vivo' para tomar fotos individuales")
+            # Análisis automático
+            with st.spinner(" Analizando..."):
+                try:
+                    if image.mode in ('RGBA', 'P'):
+                        image = image.convert('RGB')
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+                        temp_path = tmp.name
+                        image.save(temp_path, format='JPEG')
+                    
+                    results = model(temp_path, verbose=False)
+                    
+                    if len(results[0].boxes) > 0:
+                        mejor = max(results[0].boxes, key=lambda b: float(b.conf[0]))
+                        clase = CLASSES[int(mejor.cls[0])]
+                        conf = float(mejor.conf[0]) * 100
+                        
+                        with col2:
+                            st.success(f"✅ **{clase}**")
+                            st.metric("Confianza", f"{conf:.2f}%")
+                            
+                            result_img = results[0].plot()
+                            st.image(result_img, caption="Resultado", width=400)
+                            
+                            if clase in ['Crítico', 'Nada Saludable']:
+                                st.error("🚨 **¡ALERTA!**")
+                                img_bytes = BytesIO()
+                                image.save(img_bytes, format='JPEG', quality=85)
+                                img_bytes.seek(0)
+                                enviar_alerta_telegram(clase, conf, img_bytes.getvalue())
+                                st.warning("⚠️ Alerta enviada a Telegram")
+                    else:
+                        with col2:
+                            st.warning(" No se detectó hoja")
+                    
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                        
+                except Exception as e:
+                    st.error(f" Error: {e}")
 # ==========================================
 # INFORMACIÓN
 # ==========================================
