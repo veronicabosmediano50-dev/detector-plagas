@@ -270,29 +270,44 @@ elif modo == "🎥 Tiempo Real":
     
     st.markdown("---")
     
-    # Configurar WebRTC
-    webrtc_ctx = webrtc_streamer(
-        key="detector-plagas-realtime",
-        mode=WebRtcMode.SENDRECV,
-        video_processor_factory=VideoProcessor,
-        media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
-    )
+    # Configurar WebRTC con STUN servers
+    rtc_configuration = {
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},
+            {"urls": ["stun:stun1.l.google.com:19302"]},
+        ]
+    }
     
-    st.markdown("""
-    **Instrucciones de uso:**
-    1. Permite el acceso a la cámara cuando el navegador lo solicite
-    2. Acerca una hoja de algodón a la cámara
-    3. El modelo detectará automáticamente la categoría
-    4. Verás el resultado superpuesto en el video en tiempo real
-    5. El nombre de la clase y confianza aparecerán en la esquina superior izquierda
-    """)
-    
-    if webrtc_ctx.state == "RUNNING":
-        st.success(" Cámara activa - Detección en tiempo real funcionando")
-    elif webrtc_ctx.state == "STOPPED":
-        st.info("📹 Haz clic en 'START' para activar la cámara")
-
+    try:
+        # Configurar WebRTC
+        webrtc_ctx = webrtc_streamer(
+            key="detector-plagas-realtime",
+            mode=WebRtcMode.SENDRECV,
+            video_processor_factory=VideoProcessor,
+            media_stream_constraints={"video": True, "audio": False},
+            rtc_configuration=rtc_configuration,
+            async_processing=True,
+        )
+        
+        st.markdown("""
+        **Instrucciones de uso:**
+        1. Permite el acceso a la cámara cuando el navegador lo solicite
+        2. Acerca una hoja de algodón a la cámara
+        3. El modelo detectará automáticamente la categoría
+        4. Verás el resultado superpuesto en el video en tiempo real
+        5. El nombre de la clase y confianza aparecerán en la esquina superior izquierda
+        """)
+        
+        if webrtc_ctx.state == "RUNNING":
+            st.success(" Cámara activa - Detección en tiempo real funcionando")
+        elif webrtc_ctx.state == "STOPPED":
+            st.info(" Haz clic en 'START' para activar la cámara")
+        else:
+            st.warning(f"⏳ Estado: {webrtc_ctx.state}")
+            
+    except Exception as e:
+        st.error(f"❌ Error al iniciar cámara: {e}")
+        st.info(" **Alternativa:** Usa el modo 'Cámara en vivo' para tomar fotos individuales")
 # ==========================================
 # INFORMACIÓN
 # ==========================================
