@@ -158,21 +158,24 @@ elif modo == "📹 Cámara en vivo":
     st.header("📹 Capturar desde Cámara")
     st.info("💡 Haz clic en el botón para activar la cámara de tu laptop y tomar una foto")
     
-    camera_photo = st.camera_input("📸 Capturar foto de la hoja")
+    # Usar un key único para la cámara
+    camera_photo = st.camera_input(" Haz clic para activar la cámara y tomar una foto", key="live_camera")
     
-    if camera_photo:
+    if camera_photo is not None:
+        st.success("✅ Foto capturada correctamente")
+        
         col1, col2 = st.columns(2)
         
         with col1:
             image = Image.open(camera_photo)
             st.image(image, caption="Foto capturada", width=500)
         
-        if st.button("🔍 Analizar Foto"):
-            with st.spinner("Analizando imagen..."):
-                try:
-                    clase, conf, result_img, detectado = analizar_imagen(image)
-                    
-                    with col2:
+        with col2:
+            if st.button("🔍 Analizar Foto", key="analizar_foto"):
+                with st.spinner("Analizando imagen..."):
+                    try:
+                        clase, conf, result_img, detectado = analizar_imagen(image)
+                        
                         if detectado:
                             st.success(f"✅ **{clase}**")
                             st.metric("Confianza", f"{conf:.2f}%")
@@ -186,8 +189,10 @@ elif modo == "📹 Cámara en vivo":
                                 st.warning("⚠️ **Alerta enviada a Telegram**")
                         else:
                             st.warning("No se detectó ninguna hoja")
-                except Exception as e:
-                    st.error(f"❌ Error: {e}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {e}")
+    else:
+        st.info("👆 Esperando captura de foto...")
 
 # ==========================================
 # MODO 3: TIEMPO REAL AUTOMÁTICO
