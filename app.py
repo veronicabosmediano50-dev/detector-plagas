@@ -71,29 +71,39 @@ if model is None:
     st.stop()
 
 # ==========================================
-# FUNCIÓN DE ANÁLISIS (CORREGIDA)
+# FUNCIÓN DE ANÁLISIS (VERSIÓN ROBUSTA)
 # ==========================================
 def analizar_imagen(image):
     """Analiza una imagen y retorna los resultados"""
-    # Convertir SIEMPRE a RGB (evita error RGBA -> JPEG)
-    if image.mode in ('RGBA', 'P', 'LA'):
-        # Crear fondo blanco para imágenes con transparencia
-        background = Image.new('RGB', image.size, (255, 255, 255))
-        if image.mode == 'P':
-            image = image.convert('RGBA')
-        if image.mode in ('RGBA', 'LA'):
-            # Pegar imagen sobre fondo blanco usando máscara de transparencia
-            background.paste(image, mask=image.split()[-1])  # Último canal es alpha
-        image = background
-    elif image.mode != 'RGB':
-        image = image.convert('RGB')
-    
-    # Guardar imagen temporal
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
-        temp_path = tmp_file.name
-        image.save(temp_path, format='JPEG', quality=95)
-    
     try:
+        # Forzar conversión a RGB
+        if image.mode != 'RGB':
+            # Crear imagen RGB en blanco
+            rgb_image = Image.new('RGB', image.size, (255, 255, 255))
+            # Si tiene alpha channel, usarlo como máscara
+            if image.mode in ('RGBA', 'LA'):
+                rgb_image.paste(image, mask=image.split()[-1])
+            else:
+                # Para otros modos (P, L, etc.)
+                rgb_image.paste(image.convert('RGB'))
+            image = rgb_image
+        elif image.mode == 'RGB':
+            # Ya es RGB, crear una copia por seguridad
+            image = image.copy()
+        
+        # Guardar como JPEG con configuración segura
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+            temp_path = tmp_file.name
+            # Convertir a bytes primero para evitar problemas
+            image_bytes = BytesIO()
+            image.save(image_bytes, format='JPEG', quality=95)
+            image_bytes.seek(0)
+            
+            # Escribir desde bytes al archivo
+            with open(temp_path, 'wb') as f:
+                f.write(image_bytes.getvalue())
+        
+        # Ejecutar detección
         results = model(temp_path, verbose=False)
         boxes = results[0].boxes
         
@@ -105,9 +115,17 @@ def analizar_imagen(image):
             return clase, conf, result_img, True
         else:
             return None, 0, None, False
+            
+    except Exception as e:
+        st.error(f"❌ Error en análisis: {e}")
+        return None, 0, None, False
     finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        # Limpieza segura
+        try:
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except:
+            pass
 
 # ==========================================
 # SIDEBAR - SELECCIÓN DE MODO
