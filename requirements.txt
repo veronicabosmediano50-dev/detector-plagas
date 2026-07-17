@@ -2,4 +2,4 @@ ultralytics
 pillow
 requests
 opencv-python-headless
-streamlit-webrtc
+
