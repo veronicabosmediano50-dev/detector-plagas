@@ -1,7 +1,5 @@
 ultralytics
-streamlit
-Pillow
+pillow
 requests
-numpy
 opencv-python-headless
 
